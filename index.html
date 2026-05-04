@@ -1,1 +1,560 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pratik Patel — Financial Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #f5f5f3; --surface: #ffffff; --surface2: #f0efeb;
+    --border: rgba(0,0,0,0.1); --border2: rgba(0,0,0,0.18);
+    --text: #1a1a18; --text2: #5a5a56; --text3: #9a9a94;
+    --green: #0F6E56; --green-bg: #EAF3DE; --green-tx: #3B6D11;
+    --blue: #185FA5; --blue-bg: #E6F1FB; --blue-tx: #185FA5;
+    --amber: #854F0B; --amber-bg: #FAEEDA; --amber-tx: #854F0B;
+    --red: #A32D2D; --red-bg: #FCEBEB; --red-tx: #A32D2D;
+    --teal: #1D9E75; --purple: #3C3489;
+    --radius: 10px; --radius-sm: 7px;
+    --shadow: 0 1px 3px rgba(0,0,0,0.07), 0 1px 2px rgba(0,0,0,0.04);
+  }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); font-size: 14px; line-height: 1.5; min-height: 100vh; }
 
+  /* LAYOUT */
+  .shell { display: flex; height: 100vh; overflow: hidden; }
+  .sidebar { width: 280px; min-width: 280px; background: var(--surface); border-right: 1px solid var(--border); display: flex; flex-direction: column; overflow: hidden; }
+  .main { flex: 1; overflow-y: auto; padding: 24px; }
+
+  /* SIDEBAR */
+  .sb-header { padding: 20px 18px 14px; border-bottom: 1px solid var(--border); }
+  .sb-title { font-size: 15px; font-weight: 600; color: var(--text); }
+  .sb-sub { font-size: 11px; color: var(--text3); margin-top: 2px; }
+  .sb-ai { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+  .ai-log { flex: 1; overflow-y: auto; padding: 12px 14px; display: flex; flex-direction: column; gap: 8px; }
+  .ai-msg { font-size: 12.5px; line-height: 1.55; padding: 8px 11px; border-radius: 8px; max-width: 95%; }
+  .ai-msg.user { background: var(--surface2); color: var(--text); align-self: flex-end; border: 1px solid var(--border); }
+  .ai-msg.bot { background: var(--blue-bg); color: var(--blue-tx); align-self: flex-start; }
+  .ai-input-area { padding: 12px 14px; border-top: 1px solid var(--border); background: var(--surface); }
+  .ai-input { width: 100%; padding: 8px 11px; font-size: 12.5px; border: 1px solid var(--border2); border-radius: var(--radius-sm); background: var(--surface); color: var(--text); font-family: inherit; resize: none; height: 60px; }
+  .ai-input:focus { outline: none; border-color: var(--blue); }
+  .ai-send { margin-top: 7px; width: 100%; padding: 7px; font-size: 12.5px; border: none; border-radius: var(--radius-sm); background: var(--blue); color: #fff; cursor: pointer; font-family: inherit; font-weight: 500; }
+  .ai-send:hover { background: #0C447C; }
+  .chips { padding: 8px 14px; border-top: 1px solid var(--border); display: flex; flex-direction: column; gap: 5px; }
+  .chip { font-size: 11px; padding: 5px 9px; border: 1px solid var(--border2); border-radius: 12px; cursor: pointer; color: var(--text2); background: transparent; text-align: left; }
+  .chip:hover { background: var(--surface2); }
+
+  /* MAIN DASHBOARD */
+  .page-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
+  .page-title { font-size: 20px; font-weight: 600; }
+  .page-sub { font-size: 12px; color: var(--text3); margin-top: 2px; }
+  .badge { display: inline-block; font-size: 11px; padding: 3px 10px; border-radius: 20px; font-weight: 500; }
+
+  /* KPI GRID */
+  .kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 18px; }
+  .kpi { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 16px; box-shadow: var(--shadow); }
+  .kpi-label { font-size: 11px; color: var(--text3); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 6px; }
+  .kpi-val { font-size: 22px; font-weight: 600; color: var(--text); }
+  .kpi-sub { font-size: 11px; color: var(--text3); margin-top: 4px; }
+
+  /* CARDS */
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px 18px; box-shadow: var(--shadow); }
+  .card-title { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .07em; color: var(--text3); margin-bottom: 12px; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 18px; }
+  .grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+  .mb { margin-bottom: 18px; }
+
+  /* ENTRIES */
+  .entry { display: flex; align-items: center; gap: 8px; padding: 7px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
+  .entry:last-child { border-bottom: none; }
+  .dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+  .entry-name { flex: 1; color: var(--text2); }
+  .tag { font-size: 10px; padding: 2px 7px; border-radius: 4px; flex-shrink: 0; font-weight: 500; }
+  .entry-amt { font-weight: 600; color: var(--text); min-width: 72px; text-align: right; }
+  .del-btn { cursor: pointer; color: var(--text3); font-size: 16px; border: none; background: none; padding: 0 3px; line-height: 1; opacity: .5; }
+  .del-btn:hover { opacity: 1; color: var(--red); }
+  .total-row { display: flex; justify-content: space-between; padding-top: 10px; margin-top: 4px; border-top: 1px solid var(--border2); font-size: 13px; font-weight: 600; }
+  .total-row span:first-child { color: var(--text3); font-weight: 400; }
+
+  /* PROGRESS */
+  .prog-bar { height: 6px; background: var(--surface2); border-radius: 3px; overflow: hidden; margin: 8px 0 4px; }
+  .prog-fill { height: 100%; border-radius: 3px; transition: width .4s; }
+
+  /* INSIGHTS */
+  .insight { display: flex; gap: 9px; padding: 9px 12px; border-radius: var(--radius-sm); margin-bottom: 8px; font-size: 12.5px; line-height: 1.55; align-items: flex-start; }
+  .insight-icon { font-size: 13px; flex-shrink: 0; margin-top: 1px; }
+  .insight.good { background: var(--green-bg); color: var(--green-tx); }
+  .insight.warn { background: var(--amber-bg); color: var(--amber-tx); }
+  .insight.info { background: var(--blue-bg); color: var(--blue-tx); }
+  .insight.danger { background: var(--red-bg); color: var(--red-tx); }
+
+  /* NAV TABS */
+  .tabs { display: flex; gap: 6px; margin-bottom: 18px; }
+  .tab { padding: 6px 16px; font-size: 12.5px; border: 1px solid var(--border2); border-radius: 20px; cursor: pointer; background: transparent; color: var(--text2); font-family: inherit; }
+  .tab.active { background: var(--text); color: #fff; border-color: var(--text); }
+
+  /* SECTION */
+  .section { display: none; }
+  .section.active { display: block; }
+
+  scrollbar-width: thin;
+  ::-webkit-scrollbar { width: 5px; } ::-webkit-scrollbar-track { background: transparent; } ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<div class="shell">
+
+  <!-- SIDEBAR: AI ASSISTANT -->
+  <div class="sidebar">
+    <div class="sb-header">
+      <div class="sb-title">Financial Assistant</div>
+      <div class="sb-sub">Type to update your dashboard</div>
+    </div>
+    <div class="sb-ai">
+      <div class="ai-log" id="ai-log">
+        <div class="ai-msg bot">Ready. Tell me what to add, change, or remove — income, expenses, anything. Dashboard updates instantly.</div>
+      </div>
+      <div class="chips">
+        <button class="chip" onclick="useChip(this)">Add $2,400/mo rental income</button>
+        <button class="chip" onclick="useChip(this)">Add $300/mo side consulting</button>
+        <button class="chip" onclick="useChip(this)">Change salary to $9,500/mo</button>
+        <button class="chip" onclick="useChip(this)">Add $180/mo streaming subscriptions</button>
+        <button class="chip" onclick="useChip(this)">Remove dining expenses</button>
+        <button class="chip" onclick="useChip(this)">Add $200/mo dividend income</button>
+        <button class="chip" onclick="useChip(this)">Add $1,200/mo childcare</button>
+        <button class="chip" onclick="useChip(this)">Change groceries to $750</button>
+      </div>
+      <div class="ai-input-area">
+        <textarea class="ai-input" id="ai-input" placeholder='e.g. "Add $500/mo Airbnb income" or "Change mortgage to $1,800"'></textarea>
+        <button class="ai-send" onclick="handleCommand()">Update Dashboard</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MAIN DASHBOARD -->
+  <div class="main">
+
+    <div class="page-header">
+      <div>
+        <div class="page-title">Pratik Patel — Financial Dashboard</div>
+        <div class="page-sub">All figures in CAD &nbsp;·&nbsp; Balanced risk profile &nbsp;·&nbsp; Live</div>
+      </div>
+      <div id="net-badge" class="badge"></div>
+    </div>
+
+    <!-- TABS -->
+    <div class="tabs">
+      <button class="tab active" onclick="showTab('overview',this)">Overview</button>
+      <button class="tab" onclick="showTab('income',this)">Income</button>
+      <button class="tab" onclick="showTab('expenses',this)">Expenses</button>
+      <button class="tab" onclick="showTab('freedom',this)">Freedom Tracker</button>
+      <button class="tab" onclick="showTab('insights',this)">Insights</button>
+    </div>
+
+    <!-- OVERVIEW TAB -->
+    <div class="section active" id="tab-overview">
+      <div class="kpi-grid">
+        <div class="kpi"><div class="kpi-label">Net worth</div><div class="kpi-val" id="kpi-nw">$0</div><div class="kpi-sub">Assets − liabilities</div></div>
+        <div class="kpi"><div class="kpi-label">Monthly income</div><div class="kpi-val" id="kpi-inc" style="color:var(--teal)">$0</div><div class="kpi-sub" id="kpi-inc-sub"></div></div>
+        <div class="kpi"><div class="kpi-label">Monthly expenses</div><div class="kpi-val" id="kpi-exp" style="color:var(--red)">$0</div><div class="kpi-sub" id="kpi-exp-sub"></div></div>
+        <div class="kpi"><div class="kpi-label">Savings rate</div><div class="kpi-val" id="kpi-sr">0%</div><div class="kpi-sub">Burn: <span id="kpi-burn">0 mo</span> of runway</div></div>
+      </div>
+      <div class="grid2">
+        <div class="card">
+          <div class="card-title">Cash flow — 6 months</div>
+          <div style="position:relative;width:100%;height:210px"><canvas id="cfChart"></canvas></div>
+        </div>
+        <div class="card">
+          <div class="card-title">Net worth projection — 10 years</div>
+          <div style="position:relative;width:100%;height:210px"><canvas id="nwChart"></canvas></div>
+        </div>
+      </div>
+      <div class="grid2">
+        <div class="card">
+          <div class="card-title">Income breakdown</div>
+          <div style="position:relative;width:100%;height:180px"><canvas id="incPieChart"></canvas></div>
+        </div>
+        <div class="card">
+          <div class="card-title">Expense breakdown</div>
+          <div style="position:relative;width:100%;height:180px"><canvas id="expPieChart"></canvas></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- INCOME TAB -->
+    <div class="section" id="tab-income">
+      <div class="kpi-grid">
+        <div class="kpi"><div class="kpi-label">Total monthly</div><div class="kpi-val" id="inc-total-kpi" style="color:var(--teal)">$0</div></div>
+        <div class="kpi"><div class="kpi-label">Total annual</div><div class="kpi-val" id="inc-annual-kpi">$0</div></div>
+        <div class="kpi"><div class="kpi-label">Passive income</div><div class="kpi-val" id="inc-passive-kpi" style="color:var(--blue)">$0</div><div class="kpi-sub">Rental, dividends, passive</div></div>
+        <div class="kpi"><div class="kpi-label">Income streams</div><div class="kpi-val" id="inc-streams-kpi">0</div></div>
+      </div>
+      <div class="card mb">
+        <div class="card-title">All income streams</div>
+        <div id="income-list-full"></div>
+        <div class="total-row"><span>Monthly total</span><span id="inc-total-full" style="color:var(--teal)">$0</span></div>
+      </div>
+    </div>
+
+    <!-- EXPENSES TAB -->
+    <div class="section" id="tab-expenses">
+      <div class="kpi-grid">
+        <div class="kpi"><div class="kpi-label">Total monthly</div><div class="kpi-val" id="exp-total-kpi" style="color:var(--red)">$0</div></div>
+        <div class="kpi"><div class="kpi-label">Fixed costs</div><div class="kpi-val" id="exp-fixed-kpi">$0</div><div class="kpi-sub" id="exp-fixed-sub"></div></div>
+        <div class="kpi"><div class="kpi-label">Variable costs</div><div class="kpi-val" id="exp-var-kpi">$0</div><div class="kpi-sub" id="exp-var-sub"></div></div>
+        <div class="kpi"><div class="kpi-label">% of income</div><div class="kpi-val" id="exp-pct-kpi">0%</div></div>
+      </div>
+      <div class="card mb">
+        <div class="card-title">All expenses</div>
+        <div id="expense-list-full"></div>
+        <div class="total-row"><span>Monthly total</span><span id="exp-total-full" style="color:var(--red)">$0</span></div>
+      </div>
+    </div>
+
+    <!-- FREEDOM TRACKER TAB -->
+    <div class="section" id="tab-freedom">
+      <div class="kpi-grid">
+        <div class="kpi"><div class="kpi-label">Freedom progress</div><div class="kpi-val" id="ff-pct-kpi">0%</div><div class="kpi-sub">Passive ÷ expenses</div></div>
+        <div class="kpi"><div class="kpi-label">Estimated timeline</div><div class="kpi-val" id="ff-years-kpi">—</div><div class="kpi-sub">at current pace</div></div>
+        <div class="kpi"><div class="kpi-label">Monthly invested</div><div class="kpi-val" id="ff-invest-kpi">$0</div><div class="kpi-sub">20% of net cash</div></div>
+        <div class="kpi"><div class="kpi-label">Portfolio needed</div><div class="kpi-val" id="ff-target-kpi">$0</div><div class="kpi-sub">4% withdrawal rule</div></div>
+      </div>
+      <div class="card mb">
+        <div class="card-title">Passive income vs expenses</div>
+        <div class="prog-bar"><div class="prog-fill" id="ff-fill" style="width:0%;background:var(--teal)"></div></div>
+        <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text3);margin-bottom:14px">
+          <span id="ff-passive-lbl">$0 passive/mo</span><span id="ff-goal-lbl">Goal: $0/mo</span>
+        </div>
+        <div class="card-title">Net worth growth projection</div>
+        <div style="position:relative;width:100%;height:240px"><canvas id="nwGrowthChart"></canvas></div>
+        <div style="display:flex;gap:16px;margin-top:10px;font-size:11px;color:var(--text3)">
+          <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:2px;background:#378ADD;display:inline-block"></span>Balanced 7%</span>
+          <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:2px;background:#1D9E75;display:inline-block"></span>Optimistic 10%</span>
+          <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:2px;background:#888780;display:inline-block"></span>Conservative 4%</span>
+        </div>
+      </div>
+      <div class="card mb">
+        <div class="card-title">What accelerates your timeline</div>
+        <div id="ff-levers"></div>
+      </div>
+    </div>
+
+    <!-- INSIGHTS TAB -->
+    <div class="section" id="tab-insights">
+      <div class="card mb">
+        <div class="card-title">Asset breakdown</div>
+        <div class="grid2" style="margin-bottom:0">
+          <div>
+            <div class="entry"><div class="dot" style="background:#378ADD"></div><span class="entry-name">Chequing (BMO)</span><span class="entry-amt">$82,963</span></div>
+            <div class="entry"><div class="dot" style="background:#1D9E75"></div><span class="entry-name">Pension (Sunlife)</span><span class="entry-amt">$97,689</span></div>
+            <div class="entry"><div class="dot" style="background:#3C3489"></div><span class="entry-name">RRSP (Sunlife)</span><span class="entry-amt">$15,141</span></div>
+            <div class="entry"><div class="dot" style="background:#BA7517"></div><span class="entry-name">RRSP (TD)</span><span class="entry-amt">$3,564</span></div>
+          </div>
+          <div>
+            <div class="entry"><div class="dot" style="background:#0F6E56"></div><span class="entry-name">TFSA invested (IBKR)</span><span class="entry-amt">$16,455</span></div>
+            <div class="entry"><div class="dot" style="background:#888780"></div><span class="entry-name">TFSA cash (IBKR)</span><span class="entry-amt">$4,300</span></div>
+            <div class="entry"><div class="dot" style="background:#888780"></div><span class="entry-name">Cash USD (IBKR)</span><span class="entry-amt">~$975</span></div>
+            <div class="entry"><div class="dot" style="background:#A32D2D"></div><span class="entry-name">Mortgage (RBC)</span><span class="entry-amt" style="color:var(--red)">−$162,102</span></div>
+            <div class="entry"><div class="dot" style="background:#A32D2D"></div><span class="entry-name">Car loan (Desjardins)</span><span class="entry-amt" style="color:var(--red)">−$21,683</span></div>
+          </div>
+        </div>
+      </div>
+      <div id="insights-list"></div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+const USD_CAD = 1.365;
+const FIXED_ASSETS = { chequing:82963.31, pension:97688.51, rrspSunlife:15140.56, rrspTD:3563.82, tfsaInvested:16455, tfsaCash:4300, cashUSD:713*USD_CAD };
+const LIABILITIES = { mortgage:162101.71, car:21683 };
+const TOTAL_ASSETS = Object.values(FIXED_ASSETS).reduce((a,b)=>a+b,0);
+const TOTAL_LIAB = Object.values(LIABILITIES).reduce((a,b)=>a+b,0);
+const NET_WORTH = TOTAL_ASSETS - TOTAL_LIAB;
+
+let nxtId = 50;
+const uid = () => ++nxtId;
+
+let income = [
+  {id:1, name:'Salary (FedEx)', amount:8500, type:'employment'},
+];
+let expenses = [
+  {id:2, name:'Mortgage (RBC)', amount:1650, type:'fixed'},
+  {id:3, name:'Car loan (Desjardins)', amount:520, type:'fixed'},
+  {id:4, name:'Insurance', amount:300, type:'fixed'},
+  {id:5, name:'Groceries', amount:600, type:'variable'},
+  {id:6, name:'Dining & eating out', amount:350, type:'variable'},
+  {id:7, name:'Gas & transport', amount:200, type:'variable'},
+  {id:8, name:'Subscriptions & phone', amount:150, type:'fixed'},
+  {id:9, name:'Utilities', amount:180, type:'fixed'},
+  {id:10, name:'Entertainment', amount:200, type:'variable'},
+  {id:11, name:'Personal & misc', amount:250, type:'variable'},
+];
+
+const fmt = n => '$' + Math.round(Math.abs(n)).toLocaleString('en-CA');
+const totI = () => income.reduce((a,b)=>a+b.amount,0);
+const totE = () => expenses.reduce((a,b)=>a+b.amount,0);
+const netC = () => totI()-totE();
+const passiveI = () => income.filter(i=>['passive','rental','dividend'].includes(i.type)).reduce((a,b)=>a+b.amount,0);
+
+const iColors = {employment:'#1D9E75',passive:'#378ADD',rental:'#3C3489',side:'#BA7517',dividend:'#0F6E56',other:'#888780'};
+const iBg    = {employment:'#EAF3DE',passive:'#E6F1FB',rental:'#EEEDFE',side:'#FAEEDA',dividend:'#EAF3DE',other:'#F1EFE8'};
+const iTx    = {employment:'#3B6D11',passive:'#185FA5',rental:'#26215C',side:'#854F0B',dividend:'#085041',other:'#5F5E5A'};
+
+function renderEntries(containerId, items, isInc) {
+  const c = document.getElementById(containerId);
+  if (!c) return;
+  c.innerHTML = '';
+  items.forEach(item => {
+    const col = isInc ? (iColors[item.type]||'#888780') : (item.type==='fixed'?'#185FA5':'#BA7517');
+    const bg  = isInc ? (iBg[item.type]||'#F1EFE8')   : (item.type==='fixed'?'#E6F1FB':'#FAEEDA');
+    const tx  = isInc ? (iTx[item.type]||'#5F5E5A')   : (item.type==='fixed'?'#185FA5':'#854F0B');
+    const pct = totI() > 0 ? Math.round(item.amount/totI()*100) : 0;
+    const d = document.createElement('div');
+    d.className = 'entry';
+    d.innerHTML = `<div class="dot" style="background:${col}"></div><span class="entry-name">${item.name}</span><span class="tag" style="background:${bg};color:${tx}">${item.type}</span><span style="font-size:11px;color:#9a9a94;min-width:30px;text-align:right">${isInc?pct+'%':''}</span><span class="entry-amt">${fmt(item.amount)}</span><button class="del-btn" onclick="removeItem(${item.id},'${isInc?'inc':'exp'}')">×</button>`;
+    c.appendChild(d);
+  });
+}
+
+function removeItem(id, list) {
+  if (list==='inc') income = income.filter(i=>i.id!==id);
+  else expenses = expenses.filter(i=>i.id!==id);
+  render();
+  addLog('bot','Removed. Dashboard updated.');
+}
+
+function render() {
+  const ti=totI(), te=totE(), nc=netC();
+  const sr = ti>0 ? Math.round(nc/ti*100) : 0;
+  const burn = te>0 ? Math.round(FIXED_ASSETS.chequing/te) : 0;
+  const passive = passiveI();
+
+  // badge
+  const badge = document.getElementById('net-badge');
+  badge.textContent = (nc>=0?'+':'-')+fmt(nc)+' / mo';
+  badge.style.background = nc>=0?'#EAF3DE':'#FCEBEB';
+  badge.style.color = nc>=0?'#3B6D11':'#A32D2D';
+
+  // KPIs
+  setText('kpi-nw', fmt(NET_WORTH));
+  setText('kpi-inc', fmt(ti));
+  setText('kpi-inc-sub', fmt(ti*12)+' annually');
+  setText('kpi-exp', fmt(te));
+  setText('kpi-exp-sub', Math.round(te/Math.max(ti,1)*100)+'% of income');
+  setText('kpi-sr', sr+'%');
+  setText('kpi-burn', burn+' mo');
+
+  // income tab
+  setText('inc-total-kpi', fmt(ti));
+  setText('inc-annual-kpi', fmt(ti*12));
+  setText('inc-passive-kpi', fmt(passive));
+  setText('inc-streams-kpi', income.length);
+  renderEntries('income-list-full', income, true);
+  setText('inc-total-full', fmt(ti));
+
+  // expense tab
+  const fixed = expenses.filter(e=>e.type==='fixed').reduce((a,b)=>a+b.amount,0);
+  const variable = expenses.filter(e=>e.type==='variable').reduce((a,b)=>a+b.amount,0);
+  setText('exp-total-kpi', fmt(te));
+  setText('exp-fixed-kpi', fmt(fixed));
+  setText('exp-fixed-sub', Math.round(fixed/Math.max(te,1)*100)+'% of expenses');
+  setText('exp-var-kpi', fmt(variable));
+  setText('exp-var-sub', Math.round(variable/Math.max(te,1)*100)+'% of expenses');
+  setText('exp-pct-kpi', Math.round(te/Math.max(ti,1)*100)+'%');
+  renderEntries('expense-list-full', expenses, false);
+  setText('exp-total-full', fmt(te));
+
+  // freedom tracker
+  const goal = te;
+  const pct = goal>0 ? Math.min(100,Math.round(passive/goal*100)) : 0;
+  setText('ff-pct-kpi', pct+'%');
+  const portfolioNeeded = goal*12/0.04;
+  setText('ff-target-kpi', fmt(portfolioNeeded));
+  const monthlyInvest = Math.max(0, Math.round(nc*0.20));
+  setText('ff-invest-kpi', fmt(monthlyInvest));
+  const inv0 = FIXED_ASSETS.tfsaInvested+FIXED_ASSETS.rrspSunlife+FIXED_ASSETS.rrspTD+FIXED_ASSETS.tfsaCash;
+  let yrs=0, port=inv0;
+  while(port*0.04/12 < goal && yrs < 720){ port=port*(1+0.07/12)+monthlyInvest; yrs++; }
+  setText('ff-years-kpi', yrs<720 ? Math.ceil(yrs/12)+' yrs' : '35+ yrs');
+  const fillEl = document.getElementById('ff-fill');
+  if(fillEl) fillEl.style.width = pct+'%';
+  setText('ff-passive-lbl', fmt(passive)+' passive/mo');
+  setText('ff-goal-lbl', 'Goal: '+fmt(goal)+'/mo');
+
+  const levers = document.getElementById('ff-levers');
+  if(levers) levers.innerHTML = [
+    {t:'info',i:'◆',m:`Deploy the $4,300 idle TFSA cash into XEQT immediately — free compounding sitting still.`},
+    {t:'info',i:'◆',m:`Each +$500/mo invested shaves ~${Math.round(Math.ceil(yrs/12)*0.12)} years off your timeline.`},
+    {t:'warn',i:'!',m:`After maxing TFSA ($7k/yr), throw extra at the car loan ($21,683 @ ~7%). Eliminating it redirects $520/mo to wealth-building.`},
+    {t:'good',i:'↑',m:`Any rental or dividend income directly moves the freedom tracker — prioritize passive income streams above all else.`},
+  ].map(i=>`<div class="insight ${i.t}"><span class="insight-icon">${i.i}</span><span>${i.m}</span></div>`).join('');
+
+  renderInsights(ti,te,nc,sr,passive);
+  updateCharts(ti,te,nc);
+}
+
+function setText(id, val) { const el=document.getElementById(id); if(el) el.textContent=val; }
+
+function renderInsights(ti,te,nc,sr,passive) {
+  const ins = [];
+  if(sr>=20) ins.push({t:'good',i:'↑',m:`Savings rate is ${sr}% — above the 20% benchmark. You're building wealth effectively.`});
+  else if(sr>=10) ins.push({t:'warn',i:'!',m:`Savings rate is ${sr}%. Target 20%+. Find ${fmt(ti*0.20-nc)}/mo more to cut or earn.`});
+  else ins.push({t:'danger',i:'↓',m:`Savings rate is only ${sr}%. Cut variable expenses or grow income now.`});
+  if(FIXED_ASSETS.tfsaCash>0) ins.push({t:'warn',i:'!',m:`$4,300 idle in TFSA. At 7% annual return, that's ~$8,600 left on the table over 10 years. Deploy into XEQT.`});
+  const din = expenses.find(e=>/dining|eating/i.test(e.name));
+  if(din && din.amount/ti>0.05) ins.push({t:'warn',i:'↓',m:`Dining (${fmt(din.amount)}/mo) is ${Math.round(din.amount/ti*100)}% of income — above 5% benchmark.`});
+  if(FIXED_ASSETS.chequing > te*8) ins.push({t:'info',i:'◆',m:`Chequing holds ${fmt(FIXED_ASSETS.chequing)} likely at <1%. Keep ${fmt(te*6)} as emergency fund; invest the rest in a HISA or market.`});
+  if(passive===0) ins.push({t:'info',i:'◆',m:`Zero passive income. Financial freedom requires passive income ≥ expenses. Start with dividend ETFs or rental.`});
+  else ins.push({t:'good',i:'↑',m:`Passive income of ${fmt(passive)}/mo covers ${Math.round(passive/te*100)}% of expenses. Keep stacking.`});
+  ins.push({t:'info',i:'◆',m:`Car loan ($21,683) likely at 6-8%. Extra $300/mo eliminates it ~2 years early, saves ~$2,000 in interest.`});
+  const c = document.getElementById('insights-list');
+  if(c) c.innerHTML = ins.map(i=>`<div class="insight ${i.t}"><span class="insight-icon">${i.i}</span><span>${i.m}</span></div>`).join('');
+}
+
+let cfC, nwC, incPie, expPie, nwGrowth;
+function updateCharts(ti,te) {
+  const months=['Nov','Dec','Jan','Feb','Mar','Apr'];
+  const iData=[8200,8500,8500,8500,8700,ti];
+  const eData=[3900,4100,3800,4200,4050,te];
+
+  if(cfC)cfC.destroy();
+  cfC=new Chart(document.getElementById('cfChart'),{type:'bar',data:{labels:months,datasets:[
+    {label:'Income',data:iData,backgroundColor:'#1D9E75',borderRadius:4},
+    {label:'Expenses',data:eData,backgroundColor:'rgba(226,75,74,0.8)',borderRadius:4}
+  ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},
+    scales:{y:{ticks:{callback:v=>'$'+(v/1000).toFixed(0)+'k',font:{size:10}},grid:{color:'rgba(0,0,0,0.05)'}},
+      x:{ticks:{font:{size:10}},grid:{display:false}}}}});
+
+  const invest = Math.max(0,netC()*0.20);
+  const inv0 = FIXED_ASSETS.tfsaInvested+FIXED_ASSETS.rrspSunlife+FIXED_ASSETS.rrspTD+FIXED_ASSETS.tfsaCash;
+  const lbls=[],base=[],opt=[],cons=[];
+  let pb=NET_WORTH,po=NET_WORTH,pc=NET_WORTH;
+  const dr=(LIABILITIES.mortgage/300+LIABILITIES.car/60)*12;
+  for(let y=0;y<=10;y++){
+    lbls.push(2025+y+'');base.push(Math.round(pb));opt.push(Math.round(po));cons.push(Math.round(pc));
+    if(y<10){pb+=invest*12+dr+inv0*Math.pow(1.07,y)*0.07;po+=invest*12+dr+inv0*Math.pow(1.10,y)*0.10;pc+=invest*12+dr+inv0*Math.pow(1.04,y)*0.04;}
+  }
+  if(nwC)nwC.destroy();
+  nwC=new Chart(document.getElementById('nwChart'),{type:'line',data:{labels:lbls,datasets:[
+    {label:'Balanced',data:base,borderColor:'#378ADD',backgroundColor:'rgba(55,138,221,0.07)',fill:true,tension:0.35,borderWidth:2,pointRadius:2},
+    {label:'Optimistic',data:opt,borderColor:'#1D9E75',fill:false,borderDash:[4,3],tension:0.35,borderWidth:1.5,pointRadius:0},
+    {label:'Conservative',data:cons,borderColor:'#888780',fill:false,borderDash:[4,3],tension:0.35,borderWidth:1.5,pointRadius:0}
+  ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},
+    scales:{y:{ticks:{callback:v=>'$'+Math.round(v/1000)+'k',font:{size:10}},grid:{color:'rgba(0,0,0,0.05)'}},
+      x:{ticks:{font:{size:10},autoSkip:false,maxRotation:0},grid:{display:false}}}}});
+
+  if(incPie)incPie.destroy();
+  const incTypes=[...new Set(income.map(i=>i.type))];
+  incPie=new Chart(document.getElementById('incPieChart'),{type:'doughnut',data:{
+    labels:income.map(i=>i.name),
+    datasets:[{data:income.map(i=>i.amount),backgroundColor:income.map(i=>iColors[i.type]||'#888780'),borderWidth:0}]
+  },options:{responsive:true,maintainAspectRatio:false,cutout:'60%',plugins:{legend:{position:'right',labels:{font:{size:10},boxWidth:10}}}}});
+
+  if(expPie)expPie.destroy();
+  expPie=new Chart(document.getElementById('expPieChart'),{type:'doughnut',data:{
+    labels:expenses.map(e=>e.name),
+    datasets:[{data:expenses.map(e=>e.amount),backgroundColor:expenses.map(e=>e.type==='fixed'?'#378ADD':'#BA7517'),borderWidth:0}]
+  },options:{responsive:true,maintainAspectRatio:false,cutout:'60%',plugins:{legend:{position:'right',labels:{font:{size:10},boxWidth:10}}}}});
+
+  if(nwGrowth)nwGrowth.destroy();
+  const gc=document.getElementById('nwGrowthChart');
+  if(gc) nwGrowth=new Chart(gc,{type:'line',data:{labels:lbls,datasets:[
+    {label:'Balanced 7%',data:base,borderColor:'#378ADD',backgroundColor:'rgba(55,138,221,0.08)',fill:true,tension:0.35,borderWidth:2,pointRadius:3},
+    {label:'Optimistic 10%',data:opt,borderColor:'#1D9E75',fill:false,borderDash:[5,3],tension:0.35,borderWidth:1.5,pointRadius:0},
+    {label:'Conservative 4%',data:cons,borderColor:'#888780',fill:false,borderDash:[5,3],tension:0.35,borderWidth:1.5,pointRadius:0}
+  ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},
+    scales:{y:{ticks:{callback:v=>'$'+Math.round(v/1000)+'k',font:{size:10}},grid:{color:'rgba(0,0,0,0.05)'}},
+      x:{ticks:{font:{size:10},autoSkip:false,maxRotation:0},grid:{display:false}}}}});
+}
+
+function showTab(name, btn) {
+  document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('tab-'+name).classList.add('active');
+  btn.classList.add('active');
+}
+
+function addLog(role, text) {
+  const log = document.getElementById('ai-log');
+  const d = document.createElement('div');
+  d.className = 'ai-msg '+role;
+  d.textContent = text;
+  log.appendChild(d);
+  log.scrollTop = 9999;
+}
+
+function useChip(el) { document.getElementById('ai-input').value = el.textContent; handleCommand(); }
+
+function parseCommand(raw) {
+  const t = raw.toLowerCase().trim();
+  const amtMatch = t.match(/\$?([\d,]+(?:\.\d+)?)/);
+  const amt = amtMatch ? parseFloat(amtMatch[1].replace(/,/g,'')) : null;
+  const isAdd    = /\b(add|new|include|start|got|getting|earning|receive)\b/.test(t);
+  const isRemove = /\b(remove|delete|stop|cancel|no longer|eliminate|drop)\b/.test(t);
+  const isChange = /\b(change|update|set|modify|adjust|increase|decrease|raise|lower|bump|cut)\b/.test(t);
+  const expKw = ['mortgage','loan','insurance','groceries','food','dining','gas','gym','childcare','utilities','entertainment','misc','subscription','phone','bill','expense','cost','payment'];
+  const looksLikeExp = expKw.some(k=>t.includes(k));
+  const guessIncType = txt => {
+    if(/rent|rental|airbnb|property/i.test(txt)) return 'rental';
+    if(/dividend|invest|etf|fund/i.test(txt)) return 'dividend';
+    if(/consult|freelance|side|contract/i.test(txt)) return 'side';
+    if(/passive/i.test(txt)) return 'passive';
+    return 'employment';
+  };
+  let label = raw.replace(/add|remove|delete|change|update|set|new|include|start|\$[\d,]+(?:\.\d+)?|\/mo(?:nth)?|per month|monthly|a month|to\b|income|expense|salary|payment/gi,'').trim().replace(/\s+/g,' ').trim();
+  if(label.length<2) label=null;
+
+  if(isRemove) {
+    const hint = raw.replace(/remove|delete|stop|cancel|no longer|eliminate|drop/gi,'').trim().toLowerCase();
+    const mi = income.find(i=>hint.split(' ').some(w=>w.length>2&&i.name.toLowerCase().includes(w)));
+    const me = expenses.find(e=>hint.split(' ').some(w=>w.length>2&&e.name.toLowerCase().includes(w)));
+    if(mi){income=income.filter(i=>i.id!==mi.id);return{ok:true,reply:`Removed "${mi.name}" from income.`};}
+    if(me){expenses=expenses.filter(e=>e.id!==me.id);return{ok:true,reply:`Removed "${me.name}" from expenses.`};}
+    return{ok:false,reply:`Couldn't find a match. Try "remove dining" or "remove salary".`};
+  }
+  if(isChange&&amt) {
+    const hint = raw.replace(/change|update|set|modify|adjust|increase|decrease|raise|lower|bump|cut|to\b|\$[\d,]+(?:\.\d+)?|\/mo(?:nth)?|per month|monthly/gi,'').trim().toLowerCase();
+    const mi = income.find(i=>hint.split(' ').some(w=>w.length>2&&i.name.toLowerCase().includes(w)));
+    const me = expenses.find(e=>hint.split(' ').some(w=>w.length>2&&e.name.toLowerCase().includes(w)));
+    if(mi){mi.amount=Math.round(amt);return{ok:true,reply:`Updated "${mi.name}" to ${fmt(amt)}/mo.`};}
+    if(me){me.amount=Math.round(amt);return{ok:true,reply:`Updated "${me.name}" to ${fmt(amt)}/mo.`};}
+    return{ok:false,reply:`Couldn't find that entry. Try "change salary to $9,000" or "change groceries to $700".`};
+  }
+  if(isAdd&&amt) {
+    if(looksLikeExp) {
+      const type=/mortgage|loan|insurance|phone|subscription|utilities/.test(t)?'fixed':'variable';
+      const name=label||(type==='fixed'?'Fixed expense':'Variable expense');
+      expenses.push({id:uid(),name:name.charAt(0).toUpperCase()+name.slice(1),amount:Math.round(amt),type});
+      return{ok:true,reply:`Added ${fmt(amt)}/mo "${name}" as a ${type} expense.`};
+    } else {
+      const type=guessIncType(raw);
+      const name=label||(type==='rental'?'Rental income':type==='dividend'?'Dividend income':type==='side'?'Side income':'Income');
+      income.push({id:uid(),name:name.charAt(0).toUpperCase()+name.slice(1),amount:Math.round(amt),type});
+      return{ok:true,reply:`Added ${fmt(amt)}/mo "${name}" as ${type} income.`};
+    }
+  }
+  return{ok:false,reply:`Try: "Add $500/mo rental income", "Change salary to $9,000", or "Remove dining expenses".`};
+}
+
+function handleCommand() {
+  const input = document.getElementById('ai-input');
+  const text = input.value.trim();
+  if(!text) return;
+  addLog('user', text);
+  input.value = '';
+  const result = parseCommand(text);
+  if(result.ok) render();
+  addLog('bot', result.reply);
+}
+
+document.getElementById('ai-input').addEventListener('keydown', e => {
+  if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();handleCommand();}
+});
+
+render();
+</script>
+</body>
+</html>
